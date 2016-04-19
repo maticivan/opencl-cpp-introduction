@@ -1,7 +1,7 @@
 // Compile by typing "c++ -framework opencl -o myprogram01 example01.cpp" in the terminal window
 // After that you can run your code by typing "./myprogram01" in the terminal window
 
-// This program that generates a sequence based on "input01.txt" and doubles each of its elements.
+// This program generates a sequence based on "input01.txt" and doubles each of its elements.
 
 
 
