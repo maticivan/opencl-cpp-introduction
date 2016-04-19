@@ -1,0 +1,30 @@
+This file contains the sequence that is to be read by the program. 
+
+Integers (and minus signs) are treated seriously by the program.
+
+However, everything else is ignored. Specifically, the text that you are reading at the moment is ignored by the program who is searching for integers only. 
+
+So far there was not a single integer in the file, and the program is ignoring all of this writing.
+
+The first integer in the file is very special. It informs the program on how many elements the sequence will contain in total. 
+
+For this particular file we will chose that number to be: 
+
+***NUMBER OF ELEMENTS OF THE SEQUENCE***       2000
+
+List of the first few elements of the sequence:
+-2 (negative two)
+3 (three)
+0 (zero)
+1 (one)
+1 (etc)
+5 7 -7 12 8
+5
+-9
+Once the program sees this number negative nine, it stops reading. The remaining terms will be randomly generated. Actually, they will be generated from the set 
+
+0, 1, 2, ..., 19.
+
+If you want a fancy random number generator, you will have to modify the C++ code in generatingSequenceFromFile.cpp
+
+
