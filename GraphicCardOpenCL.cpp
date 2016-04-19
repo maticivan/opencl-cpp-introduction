@@ -1064,7 +1064,7 @@ mysint GraphicCard::runRN(myint N,myint r,mysint inputIndPGen){
             delete[] yAxisGC;
         }
         yAxisGC=new myint[*axisSizeGC];
-        //        if(uniformGC!=nullptr){delete uniformGC;uniformGC=new std::uniform_int_distribution<myint>(0,powerGC(2,r)-1);}
+
         uniformLimitGC=powerGC(2,r)-1;
         if(randNumbersGC==nullptr){
             delete[] randNumbersGC;
@@ -1094,23 +1094,7 @@ mysint GraphicCard::runRN(myint N,myint r,mysint inputIndPGen){
         
         generatePermutationsGC(xPermutationsGC,*axisSizeGC,*lengthInBinaryGC);
         generatePermutationsGC(yPermutationsGC,*axisSizeGC,*lengthInBinaryGC);
-        /*
-        for(myint j=0;j<*lengthInBinaryGC;j++){
-            for(myint i=0;i<10;i++){
-                std::cout<<xPermutationsGC[i* (*lengthInBinaryGC)+j]<<" ";
-            }
-            std::cout<<std::endl;
-        }
-        std::cout<<std::endl;
-        
-        for(myint j=0;j<*lengthInBinaryGC;j++){
-            for(myint i=0;i<10;i++){
-                std::cout<<yPermutationsGC[i*(*lengthInBinaryGC)+j]<<" ";
-            }
-            std::cout<<std::endl;
-        }*/
-        //std::cout<<std::endl;
-        //std::cout<<"Permutations generated"<<std::endl;
+
     }
     
     
@@ -1129,50 +1113,22 @@ mysint GraphicCard::runRN(myint N,myint r,mysint inputIndPGen){
     
     
     
-    //std::cout<<"Got here 3"<<std::endl;
-    
     std::uniform_int_distribution<myint> uInt(0,uniformLimitGC);
     for(myint i=0;i<*axisSizeGC;i++){
         
         xAxisGC[i]= uInt(*randNumObjectGC);
         yAxisGC[i]= uInt(*randNumObjectGC);
     }
-    
-    //TESTING CODE - DANGEROUS - ERASE AFTER TESTING
-    //xAxisGC[0]=19;
-    //yAxisGC[0]=15;
-    //TESTING CODE
-    /*std::cout<<"x-axis printing"<<std::endl;
-    for(myint i=0;i<*axisSizeGC;i++){
-        std::cout<<xAxisGC[i]<<" ";
-    }
-    std::cout<<std::endl;
-    
-    std::cout<<"y-axis printing"<<std::endl;
-    for(myint i=0;i<*axisSizeGC;i++){
-        std::cout<<yAxisGC[i]<<" ";
-    }
-    std::cout<<std::endl;
-    
-    
-    std::cout<<"powers of 2 printing"<<std::endl;
-    for(myint i=0;i<*lengthInBinaryGC;i++){
-        std::cout<<powersOfTwoGC[i]<<" ";
-    }
-    std::cout<<std::endl;
-    
-    */
-    writeDeviceMemory("xAxGCCL",xAxisGC,*axisSizeGC);
+        writeDeviceMemory("xAxGCCL",xAxisGC,*axisSizeGC);
     writeDeviceMemory("yAxGCCL",yAxisGC,*axisSizeGC);
-    
-    //std::cout<<"Memory writing complete"<<std::endl;
+
     if(indFirstRNInit==0){
         indPGen=1;
         indFirstRNInit=1;
         writeDeviceMemory("rNumGCCL",randNumbersGC,(*axisSizeGC)*(*axisSizeGC));
         
         findAddKernel("genMainRandomMatrixGC");
-        //std::cout<<"Kernel added correctly"<<std::endl;
+
         std::string *lArgRNK;
         myint numArg=9;
         lArgRNK=new std::string[numArg];
@@ -1186,14 +1142,10 @@ mysint GraphicCard::runRN(myint N,myint r,mysint inputIndPGen){
         lArgRNK[7]="binaryLengthGCCL";
         lArgRNK[8]="shufflingPrimeGCCL";
         setKernelArguments("genMainRandomMatrixGC",lArgRNK,numArg);
-        //std::cout<<"Kernel arguments set correctly"<<std::endl;
         delete[] lArgRNK;
         
     }
-    //std::cout<<"Executing the kernel: "<<kernflsGC[0]<< std::endl;
     executeKernel("genMainRandomMatrixGC", (*axisSizeGC)*(*axisSizeGC));
-    
-    //std::cout<<"Kernel execution successful"<<std::endl;
     return 1;
 }
 
