@@ -3,10 +3,23 @@ This repository contains the class GraphicCard that allows beginners to start pr
 
 It also contains a simple parallel random number generator.
 
-##GPGPU 
-The abbreviation GPGPU refers to *general purpose programming on graphics processing units*. The graphic cards of modern computers can be used to do serious scientific calculations. They contain thousands of computing cores (that we will call *processing elements*), and as such they are ideal for parallel programming. The processing elements can be thought of as small CPUs that are numerous, but not as advanced as the central processors. High end CPUs can have speeds in range of 4GHz, but a quad-core system will have only four of these units. On the other hand, the graphic card can have 4000 processing elements each of which runs at 1GHz. In addition, not all operations are permitted and not all data structures are available to the processing elements of a typical graphic card. 
+## Compilation and usage of the class
 
-## Class GraphicCard
-The interaction between GPU and the host platform is fairly complex for the beginners. This tutorial introduces the class GraphicCard written in C++ which does most of the work associated with memory management on GPU. The usage of this class removes the necessity of understanding completely the mechanisms behind the host/device interaction. 
+Place the files GraphicCardOpenCL.cpp and gc_parallel_rnum.cl in the folder that will contain your source code and place the line 
+#include "GraphicCardOpenCL.cpp"
+in the header of your file. 
 
-Needless to say, the usage of this class is limited to building the basic codes only. It is unlikely that the class will be suitable for projects that need to harness the full power of parallel programming. The comprehensive coverage of OpenCL is provided in A. Munshi, B. Gaster, T.G. Mattson, J. Fung, D. Ginsburg: *OpenCL programming guide.* (Addison-Wesley  2012.)
+In order to run examples given in the folder you will also need generatingSequenceFromFile.cpp. 
+
+In order to compile and run example01.cpp, make sure input01.txt is also in the folder and type the following in Mac OSX terminal window:
+
+c++ -framework opencl -o myprogram01 example01.cpp
+
+After the compilation, you can run the program by typing
+
+./myprogram01
+
+
+
+
+
