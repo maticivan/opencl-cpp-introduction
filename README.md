@@ -28,7 +28,7 @@ After the compilation, you can run the program by typing (in terminal window)
 
 #### Ubuntu 16.04
 If you have proper drivers for grahpic card installed, you need to type the following in the terminal
- c++ -o myprogram01 example01.cpp -lOpenCL -std=c++11
+  c++ -o myprogram01 example01.cpp -lOpenCL -std=c++11
 
 The compiler may return warnings if your version of opencl is 2.0. However, it should still compile well and the program can be run by typing
- ./myprogram01
+  ./myprogram01
