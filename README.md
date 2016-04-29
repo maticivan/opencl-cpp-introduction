@@ -5,7 +5,7 @@ It also contains a simple parallel random number generator.
 
 ## Compilation and usage of the class
 
-Place the files GraphicCardOpenCL.cpp and gc_parallel_rnum.cl in the folder that will contain your source code and place the line 
+###Step 1: Place the files GraphicCardOpenCL.cpp and gc_parallel_rnum.cl in the folder that will contain your source code and place the line 
 
   #include "GraphicCardOpenCL.cpp"
 
