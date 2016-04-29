@@ -334,7 +334,7 @@ mysint GraphicCard::generateRandomNumbers(myint N,myint r,mysint inputIndPGen){
         createPascalTriangleGC(*lengthInBinaryGC+3);
         *numBalancedNumbersGC=pascalTriangleGC[ ((*lengthInBinaryGC)*(*lengthInBinaryGC+1))/2+ (*lengthInBinaryGC)/2];
         
-        
+        //std::cout<<"From the graphic card: "<<*numBalancedNumbersGC<< std::endl;
         uniformLimitGC=*numBalancedNumbersGC-1;
         for(myint i=0;i<bigInt;i++){
             delete[] binMatrix[i];

@@ -155,9 +155,9 @@ protected:
 
 
 GraphicCard::GraphicCard(std::string programName,mysint forceCPU){
-    contextGC=0;
-    commandQueueGC=0;
-    programGC=0;
+    contextGC=nullptr;
+    commandQueueGC=nullptr;
+    programGC=nullptr;
     deviceGC=0;
     kernflsGC=nullptr;
     numMemObjectsGC=0;
@@ -173,6 +173,7 @@ GraphicCard::GraphicCard(std::string programName,mysint forceCPU){
     *axisSizeGC=0;
     xAxisGC=nullptr;
     yAxisGC=nullptr;
+    randNumbersGC=nullptr;
     lengthInBinaryGC=new myint;
     *lengthInBinaryGC=0;
     shufflingPrimeGC=new myint;
@@ -470,14 +471,14 @@ void GraphicCard::Cleanup()
 {
     for (myint i = 0; i < numMemObjectsGC; i++)
     {
-        if (memObjectsGC[i] != 0)
+        if (memObjectsGC[i] != nullptr) 
             clReleaseMemObject(memObjectsGC[i]);
     }
-    if (commandQueueGC != 0)
+    if (commandQueueGC != nullptr) 
         clReleaseCommandQueue(commandQueueGC);
     
     for(myint k=0;k<numberOfKernelsGC;k++){
-        if(kernflsGC[k]!=0){
+        if(kernflsGC[k]!=nullptr){ 
             clReleaseKernel(kernflsGC[k]);
         }
     }
@@ -485,10 +486,10 @@ void GraphicCard::Cleanup()
     
     
     
-    if (programGC != 0)
+    if (programGC != nullptr) 
         clReleaseProgram(programGC);
     
-    if (contextGC != 0)
+    if (contextGC != nullptr) 
         clReleaseContext(contextGC);
     
     delete[] kernelNamesGC;
@@ -502,41 +503,28 @@ void GraphicCard::Cleanup()
     delete[] variablesCorrectlySetInKernelGC;
     delete[] powersOfTwoGC;
     
-    if(xAxisGC!=nullptr){
-        delete[] xAxisGC;
-    };
-    if(yAxisGC!=nullptr){
-        delete[] yAxisGC;
-    };
-    if(xPermutationsGC!=nullptr){
-        delete[] xPermutationsGC;
-    };
-    if(yPermutationsGC!=nullptr){
-        delete[] yPermutationsGC;
-    };
-    /*if(randNumObjectGC!=nullptr){
-        delete randNumObjectGC;
-    }*/
-    if(balancedNumbersGC!=nullptr){
-        delete[] balancedNumbersGC;
-    }
-    
-    if(numBalancedNumbersGC!=nullptr){
-        delete numBalancedNumbersGC;
-    }
-    
-    if(pascalTriangleGC!=nullptr){
-        delete[] pascalTriangleGC;
-    }
-    if(sizePascalTrGC!=nullptr){
-        delete sizePascalTrGC;
-    }
-    
-    
-//    if(uniformGC!=nullptr){delete uniformGC;}
-    if(randNumbersGC!=nullptr){
-        delete randNumbersGC;
-    }
+ 
+    delete[] xAxisGC;
+
+    delete[] yAxisGC;
+
+    delete[] xPermutationsGC;
+
+    delete[] yPermutationsGC;
+
+    delete[] balancedNumbersGC;
+
+    delete numBalancedNumbersGC;
+
+    delete[] pascalTriangleGC;
+
+    delete sizePascalTrGC;
+
+
+
+
+    delete randNumbersGC;
+     
 }
 
 
