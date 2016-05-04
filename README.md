@@ -6,15 +6,16 @@ It also contains a simple parallel random number generator.
 ## Compilation and usage of the class
 
 ###Step 1: Preparing the folder
-Place the files GraphicCardOpenCL.cpp and gc_parallel_rnum.cl in the folder that will contain your source code and place the line 
+If you want to test example01.cpp, make a folder and copy the following files in it:  
+GraphicCardOpenCL.cpp, example01.cpp, gc_parallel_rnum.cl, generatingSequenceFromFile.cpp, input01.txt, and parallel01.cl
+
+When making your own programs, you have to place the files GraphicCardOpenCL.cpp and gc_parallel_rnum.cl in the folder that will contain your source code and place the line 
 
   #include "GraphicCardOpenCL.cpp"
 
 in the header of your file. 
 
-In order to run examples given in the folder you will also need generatingSequenceFromFile.cpp. 
-
-If you want to test example01.cpp, make sure input01.txt is also in the folder.
+In order to run examples prepared with this class you will also need generatingSequenceFromFile.cpp. 
 
 ###Step 2: Running the compilers
 #### Mac OSX 10.11.**
