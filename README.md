@@ -18,7 +18,7 @@ in the header of your file.
 In order to run examples prepared with this class you will also need generatingSequenceFromFile.cpp. 
 
 ###Step 2: Running the compilers
-#### Mac OSX 10.11.**
+#### Mac OSX 10.11
 As long as you have xcode installed on your system, the following command in terminal would do the job: 
 
   c++ -framework opencl -o myprogram01 example01.cpp
