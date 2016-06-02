@@ -8,7 +8,8 @@
 #include <CL/cl.h>
 #endif
 
-
+#include <map>
+#include <set>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -26,8 +27,8 @@
 
 
 
-typedef int mysint;
-typedef  int myint;
+typedef long int mysint;
+typedef long int myint;
 
 
 
@@ -57,7 +58,13 @@ public:
     //function will return the kernel's number.
     //Otherwise, the function will return -1.
     //If the second parameter is set to 0, the function will add the kernel with the given name.
-    mysint deviceMemoryAccess(std::string,myint *, myint, mysint=0, myint=0);
+
+    
+    //    mysint deviceMemoryAccess(std::string,myint *, myint, mysint=0, myint=0);
+    
+    
+    template <typename int_doub> mysint deviceMemoryAccess(std::string,int_doub *, myint, mysint=0, myint=0);
+    
     //The arguments are: std::string memBlockName, myint * memorySequence,
     //                      myint sLength, mysint action, myint writingShift=0
     //First the function will determine the index of the element of memObjectsGC that
@@ -70,15 +77,20 @@ public:
     //              and storing it into the sequence
     //action==2 - Updating only the length of the memory block. The new length is provided in sLength.
     //action==3 - Just determine the id number of the memory block with name memBlockName.
+    //action==4 - Delete memory block;
     
-    
-    mysint deviceMemoryAccess(std::string,cl_double *, myint, mysint=0, myint=0);
+   // mysint deviceMemoryAccess(std::string,cl_double *, myint, mysint=0, myint=0);
     // Same as before but accepts sequence of real numbers of type double
     
-    mysint writeDeviceMemory(std::string, myint*, myint);
-    mysint readDeviceMemory(std::string, myint*, myint);
-    mysint writeDeviceMemory(std::string, double*, myint);
-    mysint readDeviceMemory(std::string, double*, myint);
+    
+    
+    
+    
+    template <typename int_doub> mysint writeDeviceMemory(std::string, int_doub *, myint);
+    template <typename int_doub> mysint readDeviceMemory(std::string, int_doub *, myint);
+    //mysint writeDeviceMemory(std::string, double*, myint);
+   // mysint readDeviceMemory(std::string, double*, myint);
+    mysint freeDeviceMemory(std::string);
     
     mysint setKernelArguments(std::string,std::string*,mysint);
     // The arguments are: kernelName, listOfParameters, numberOfParametersInTheList
@@ -91,8 +103,28 @@ public:
     //              r - length of the numbers in binary
     //              indicator
     // - If indicator is 1, then the permutations will be created again.
-    // - Note that permutations will be created again if N and/or r is changed from what it were before
+    // - Note that permutations will be created the first time the generator is executed.
+   
+  
+    mysint generateNormalBeasleySpringerMoro(myint, myint, myint, myint*,
+                                             myint*,myint,//these two are for debugging
+                                             cl_double =0.0, cl_double =1.0, mysint=0);
     
+    //Generates normal distribution
+    //Arguments:    N - Size of each axis in the seed
+    //              r - length of the numbers in binary
+    //              precisionRequest - the number of integers from the discrete distribution that will be used
+    //                                  to generate uniform [0,1] distribution.
+    //              sampleLength - (myint*) contains the size of the generated sample
+    //                              sampleLength = N^2 /  precisionRequest
+    //              parameter1 - used for normal and denotes the mean
+    //              parameter2 - for normal it denotes sigma, for exponential, it denotes lambda.
+    //              indicator - If the indicator is 1, then the permutations will be created again.
+    
+    
+    mysint generateExponential(myint, myint, myint, myint*,
+                                             myint*,myint,//these two are for debugging
+                                             cl_double =1.0, mysint=0);
     
 protected:
     cl_context contextGC;
@@ -106,6 +138,8 @@ protected:
     std::string * kernelNamesGC;
     std::string * memObjNamesGC;
     size_t* preferred_workgroup_sizeGC;
+    
+    std::set<myint>* kernelResponsibilitiesGC;
     
     mysint *variablesCorrectlySetInKernelGC;
     
@@ -121,16 +155,43 @@ protected:
     myint *yPermutationsGC;
     myint *pascalTriangleGC;
     myint *sizePascalTrGC;
+    myint *highestPrecisionGC;
+    myint *precisionRequestGC;
+    
+    myint *exponentKGC;
+    myint *sizeForRejectionSamplingGC;
+    myint *sampleLengthGC;
+    myint *inspectorRejSampGC;
+    
+    
+    cl_double *parameter1GC;
+    cl_double *parameter2GC;
+    
+    cl_double *randomSampleGC;
+
+    
     
     myint indFirstRNInitGC;
+    
+    myint inspectorExecutedGC;
+    myint sampleGenKernExecutedGC;
+    
     myint currentSeedGC;
     myint uniformLimitGC;
     
+    myint lastRandAlgUsedGC; //each random distribution has a code. Normal is 7; exponential is 8
+                             //when the same algorithm with same sample sizes is used repeatedly, some
+                             //savings in time are possible.
+                             //This variable is updated to contain the label of the last algorithm used.
     
     
     myint *randNumbersGC;
     myint *powersOfTwoGC;
     
+    myint numberOfDistributionsGC;
+    std::string* distributionKernelNamesGC;
+    std::string normalBSMNameGC;
+    std::string exponentialDistNameGC;
     std::string kernelFileGC;
     std::string kernelPreLoadedGC;
     
@@ -186,7 +247,8 @@ GraphicCard::GraphicCard(std::string programName,mysint forceCPU){
     xPermutationsGC=nullptr;
     yPermutationsGC=nullptr;
     indFirstRNInitGC=0;
-    
+    inspectorExecutedGC=0;
+    sampleGenKernExecutedGC=0;
     uniformLimitGC=10000;
     currentSeedGC=std::chrono::high_resolution_clock::now().time_since_epoch().count();
     
@@ -199,8 +261,32 @@ GraphicCard::GraphicCard(std::string programName,mysint forceCPU){
     sizePascalTrGC=new myint;
     *sizePascalTrGC=0;
     
+    highestPrecisionGC=new myint;
+    *highestPrecisionGC=100000;
     
+    precisionRequestGC=new myint;
+    *precisionRequestGC=0;
+    exponentKGC=new myint;
+    *exponentKGC=3;
+    sizeForRejectionSamplingGC=new myint;
+    *sizeForRejectionSamplingGC=5;
     
+    sampleLengthGC=new myint;
+    *sampleLengthGC=0;
+    
+    parameter1GC=new cl_double;
+    *parameter1GC=0;
+    parameter2GC=new cl_double;
+    *parameter2GC=1;
+    randomSampleGC=nullptr;
+    
+    inspectorRejSampGC=nullptr;
+    kernelResponsibilitiesGC=nullptr;
+
+    
+    normalBSMNameGC="normalBSMGC";
+    exponentialDistNameGC="exponentialDistGC";
+    lastRandAlgUsedGC=-1;
     mysint shouldQuit=0;
     
     if (contextGC == nullptr)
@@ -497,6 +583,7 @@ void GraphicCard::Cleanup()
     delete[] kernflsGC;
     delete[] memObjNamesGC;
     delete[] memObjectsGC;
+    delete[] kernelResponsibilitiesGC;
     delete preferred_workgroup_sizeGC;
     delete axisSizeGC;
     delete lengthInBinaryGC;
@@ -521,16 +608,30 @@ void GraphicCard::Cleanup()
     
     delete sizePascalTrGC;
     
+    delete highestPrecisionGC;
+    delete precisionRequestGC;
     
+    delete exponentKGC;
+    delete sizeForRejectionSamplingGC;
+    delete sampleLengthGC;
     
+    delete parameter1GC;
+    delete parameter2GC;
+    
+    delete[] randomSampleGC;
+    
+    delete[] inspectorRejSampGC;
+
+
     
     delete randNumbersGC;
     
 }
 
 
-
-mysint GraphicCard::deviceMemoryAccess(std::string memBlockName,myint *memorySequence, myint sLength, mysint action, myint writingShift){
+template <typename int_doub>
+mysint GraphicCard::deviceMemoryAccess(std::string memBlockName,int_doub *memorySequence,
+                                       myint sLength, mysint action, myint writingShift){
     mysint i=0;
     mysint foundName=-1;
     cl_int errNum;
@@ -547,41 +648,47 @@ mysint GraphicCard::deviceMemoryAccess(std::string memBlockName,myint *memorySeq
     if((foundName==-1)&&(action==0)){
         std::string *newMemObjNames;
         cl_mem *newMemObjects;
+        std::set<myint>*newKernelResp;
         newMemObjNames=new std::string[numMemObjectsGC+1];
+        newKernelResp=new std::set<myint>[numMemObjectsGC+1];
         newMemObjects=new cl_mem[2*(numMemObjectsGC+1)];
         for(i=0;i<numMemObjectsGC;i++){
             newMemObjNames[i]=memObjNamesGC[i];
+            newKernelResp[i]=kernelResponsibilitiesGC[i];
             newMemObjects[2*i]=memObjectsGC[2*i];
             newMemObjects[2*i+1]=memObjectsGC[2*i+1];
         }
         if(numMemObjectsGC>0){
             delete[] memObjNamesGC;
             delete[] memObjectsGC;
+            delete[] kernelResponsibilitiesGC;
         }
         
         
         memObjNamesGC=newMemObjNames;
         memObjectsGC=newMemObjects;
+        kernelResponsibilitiesGC=newKernelResp;
         memObjNamesGC[numMemObjectsGC]=memBlockName;
+        //kernelResponsibilitiesGC[numMemObjectsGC] is empty set without us having to do anything
         const char * cChar = memBlockName.c_str();
         
         memObjectsGC[2*numMemObjectsGC] = clCreateBuffer(contextGC, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                                          sizeof(myint) , pSLength, nullptr);
         memObjectsGC[2*numMemObjectsGC+1] = clCreateBuffer(contextGC, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                                           sizeof(myint) * sLength , memorySequence, nullptr);
+                                                           sizeof(int_doub) * sLength , memorySequence, nullptr);
         
         numMemObjectsGC++;
         
     }
     if((foundName!=-1)&&(action==1)){
         errNum = clEnqueueReadBuffer(commandQueueGC, memObjectsGC[2*foundName+1], CL_TRUE,
-                                     sizeof(myint) * writingShift,   sizeof(myint)* sLength, memorySequence,
+                                     sizeof(int_doub) * writingShift,   sizeof(int_doub)* sLength, memorySequence,
                                      0, nullptr, &eventE);
         clWaitForEvents(1, &eventE);
     }
     
     if((foundName!=-1)&&(action==0)){
-        clEnqueueWriteBuffer(commandQueueGC, memObjectsGC[2*foundName+1], CL_TRUE, sizeof(myint) * writingShift,   sizeof(myint)* sLength,memorySequence,0,nullptr, &eventE);
+        clEnqueueWriteBuffer(commandQueueGC, memObjectsGC[2*foundName+1], CL_TRUE, sizeof(int_doub) * writingShift,   sizeof(int_doub)* sLength,memorySequence,0,nullptr, &eventE);
         clWaitForEvents(1, &eventE);
     }
     
@@ -589,84 +696,47 @@ mysint GraphicCard::deviceMemoryAccess(std::string memBlockName,myint *memorySeq
         clEnqueueWriteBuffer(commandQueueGC, memObjectsGC[2*foundName], CL_TRUE, 0,     sizeof(myint),pSLength,0,nullptr, &eventE);
         clWaitForEvents(1, &eventE);
     }
+    if((foundName!=-1)&&(action==4)){
+        if (memObjectsGC[2*foundName] != nullptr){
+            clReleaseMemObject(memObjectsGC[2*foundName]);
+        }
+        if (memObjectsGC[2*foundName+1] != nullptr){
+            clReleaseMemObject(memObjectsGC[2*foundName+1]);
+        }
+        numMemObjectsGC--;
+        for(myint i=foundName;i<numMemObjectsGC;i++){
+            memObjNamesGC[i]=memObjNamesGC[i+1];
+            memObjectsGC[2*i]=memObjectsGC[2*(i+1)];
+            memObjectsGC[2*i+1]=memObjectsGC[2*(i+1)+1];
+            kernelResponsibilitiesGC[i]=kernelResponsibilitiesGC[i+1];
+        }
+    }
+    
+    
     delete pSLength;
     return foundName;
 }
 
 
 
+
+/*
+mysint GraphicCard::deviceMemoryAccess(std::string memBlockName,myint *memorySequence, myint sLength, mysint action, myint writingShift){
+    return  deviceMemoryAccTemp(memBlockName, memorySequence,  sLength, action, writingShift);
+}
 
 
 mysint GraphicCard::deviceMemoryAccess(std::string memBlockName,cl_double *memorySequence, myint sLength, mysint action, myint writingShift){
-    mysint i=0;
-    mysint foundName=-1;
-    cl_int errNum;
-    cl_event eventE;
-    myint *pSLength;
-    pSLength=new myint;
-    *pSLength=sLength;
-    while((i<numMemObjectsGC)&&(foundName==-1)){
-        if(memObjNamesGC[i]==memBlockName){
-            foundName=i;
-        }
-        i++;
-    }
-    if((foundName==-1)&&(action==0)){
-        std::string *newMemObjNames;
-        cl_mem *newMemObjects;
-        newMemObjNames=new std::string[numMemObjectsGC+1];
-        newMemObjects=new cl_mem[2*(numMemObjectsGC+1)];
-        for(i=0;i<numMemObjectsGC;i++){
-            newMemObjNames[i]=memObjNamesGC[i];
-            newMemObjects[2*i]=memObjectsGC[2*i];
-            newMemObjects[2*i+1]=memObjectsGC[2*i+1];
-        }
-        if(numMemObjectsGC>0){
-            delete[] memObjNamesGC;
-            delete[] memObjectsGC;
-        }
-        
-        
-        memObjNamesGC=newMemObjNames;
-        memObjectsGC=newMemObjects;
-        memObjNamesGC[numMemObjectsGC]=memBlockName;
-        const char * cChar = memBlockName.c_str();
-        
-        memObjectsGC[2*numMemObjectsGC] = clCreateBuffer(contextGC, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                                         sizeof(myint) , pSLength, nullptr);
-        memObjectsGC[2*numMemObjectsGC+1] = clCreateBuffer(contextGC, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                                           sizeof(cl_double) * sLength , memorySequence, nullptr);
-        
-        numMemObjectsGC++;
-        
-    }
-    if((foundName!=-1)&&(action==1)){
-        errNum = clEnqueueReadBuffer(commandQueueGC, memObjectsGC[2*foundName+1], CL_TRUE,
-                                     sizeof(cl_double) * writingShift,   sizeof(cl_double)* sLength, memorySequence,
-                                     0, nullptr, &eventE);
-        clWaitForEvents(1, &eventE);
-    }
-    
-    if((foundName!=-1)&&(action==0)){
-        clEnqueueWriteBuffer(commandQueueGC, memObjectsGC[2*foundName+1], CL_TRUE, sizeof(cl_double) * writingShift,   sizeof(cl_double)* sLength,memorySequence,0,nullptr, &eventE);
-        clWaitForEvents(1, &eventE);
-    }
-    
-    if((foundName!=-1)&&(action==2)){
-        clEnqueueWriteBuffer(commandQueueGC, memObjectsGC[2*foundName], CL_TRUE, 0,     sizeof(myint),pSLength,0,nullptr, &eventE);
-        clWaitForEvents(1, &eventE);
-    }
-    delete pSLength;
-    return foundName;
+    return   deviceMemoryAccTemp(memBlockName, memorySequence,  sLength, action, writingShift);
 }
 
 
-
+*/
 
 mysint GraphicCard::setKernelArguments(std::string kernelName,std::string* parNames,mysint numberOfParameters){
     mysint kernelNumber=findAddKernel(kernelName);
     mysint forReturn=0;
-    myint *memSequence=0;
+    myint *memSequence=nullptr;
     mysint helpNum;
     cl_int errNum;
     
@@ -684,6 +754,7 @@ mysint GraphicCard::setKernelArguments(std::string kernelName,std::string* parNa
     }
     if(forReturn!=-1){
         for(mysint i=0;i<numberOfParameters;i++){
+            kernelResponsibilitiesGC[parNumbers[i]].insert(kernelNumber);
             helpNum=2*parNumbers[i];
             helpNum++;
             errNum=clSetKernelArg(kernflsGC[kernelNumber], i, sizeof(cl_mem), &memObjectsGC[helpNum]);
@@ -866,6 +937,7 @@ mysint GraphicCard::executeKernel(std::string kernelName, myint numberOfProcessi
                                       0, nullptr, &eventE);
         
         if (errNum != CL_SUCCESS){
+            std::cout<<"Error in kernel "<<kernelNumber<<std::endl;
             treatError(errNum,contextGC, commandQueueGC, programGC, kernflsGC, numberOfKernelsGC, memObjectsGC, numMemObjectsGC);
             return 1;
         }
@@ -883,7 +955,7 @@ mysint GraphicCard::executeKernel(std::string kernelName, myint numberOfProcessi
 
 myint GraphicCard::treatError(cl_int errNum, cl_context context, cl_command_queue commandQueue,
                               cl_program program, cl_kernel *kernfls, myint numKernels,cl_mem *memObjects, myint numMemObjects){
-    std::cerr << "Error queuing kernel for execution. Kernel 1! " << " "<<errNum<< std::endl;
+    std::cerr << "Error queuing kernel for execution! " << " "<<errNum<< std::endl;
     if(errNum==CL_INVALID_PROGRAM_EXECUTABLE){std::cout<<"CL_INVALID_PROGRAM_EXECUTABLE"<<std::endl;}
     if(errNum==CL_INVALID_COMMAND_QUEUE){std::cout<<"CL_INVALID_COMMAND_QUEUE"<<std::endl;}
     if(errNum==CL_INVALID_KERNEL){std::cout<<"CL_INVALID_KERNEL"<<std::endl;}
@@ -905,18 +977,53 @@ myint GraphicCard::treatError(cl_int errNum, cl_context context, cl_command_queu
     return 1;
 }
 
-mysint GraphicCard::writeDeviceMemory(std::string memBlockName,myint *memorySequence, myint sLength){
+template <typename int_doub> mysint GraphicCard::writeDeviceMemory(std::string memBlockName,int_doub *memorySequence, myint sLength){
+    
+    mysint memId=deviceMemoryAccess(memBlockName,memorySequence,sLength,3);
+    if(memId!=-1){
+        // We will check whether the new length is bigger than the allocated length.
+        // If that is the case, we need to reallocate more space.
+        myint currentLength;
+        cl_int errNum;
+        cl_event eventE;
+        errNum = clEnqueueReadBuffer(commandQueueGC, memObjectsGC[2*memId], CL_TRUE,
+                                     //sizeof(myint) * writingShift,   sizeof(myint)* sLength, memorySequence,
+                                           0,   sizeof(myint) , &currentLength,
+                                     0, nullptr, &eventE);
+        clWaitForEvents(1, &eventE);
+        if(currentLength<sLength){
+            std::set<myint>::iterator it;
+            for(it=(kernelResponsibilitiesGC[memId]).begin();it!=(kernelResponsibilitiesGC[memId]).end();++it){
+                variablesCorrectlySetInKernelGC[*it]=0;
+            }
+            deviceMemoryAccess(memBlockName,memorySequence,sLength,4);
+           
+        }
+        
+    }
+    
+    
     return deviceMemoryAccess(memBlockName,memorySequence,sLength);
 }
-mysint GraphicCard::readDeviceMemory(std::string memBlockName,myint *memorySequence, myint sLength){
+template <typename int_doub> mysint GraphicCard::readDeviceMemory(std::string memBlockName,int_doub *memorySequence, myint sLength){
     return deviceMemoryAccess(memBlockName,memorySequence,sLength,1);
 }
+
+/*
 mysint GraphicCard::writeDeviceMemory(std::string memBlockName,cl_double *memorySequence, myint sLength){
     return deviceMemoryAccess(memBlockName,memorySequence,sLength);
 }
 mysint GraphicCard::readDeviceMemory(std::string memBlockName,cl_double *memorySequence, myint sLength){
     return deviceMemoryAccess(memBlockName,memorySequence,sLength,1);
 }
+*/
+mysint GraphicCard::freeDeviceMemory(std::string memBlockName){
+    myint*memorySequence, sLength;
+    return deviceMemoryAccess(memBlockName,memorySequence,sLength,4);
+}
+
+
+
 GraphicCard::~GraphicCard(){
     Cleanup();
     
@@ -1207,12 +1314,41 @@ mysint GraphicCard::generateRandomNumbers(myint N,myint r,mysint inputIndPGen){
     padding=*preferred_workgroup_sizeGC;
 
    
-
+    std::string *lArgRNK;
+    myint numArg=12;
+    lArgRNK=new std::string[numArg];
+    lArgRNK[0]="rNumGCCL";
+    lArgRNK[1]="xAxGCCL";
+    lArgRNK[2]="yAxGCCL";
+    lArgRNK[3]="permutationsXGCCL";
+    lArgRNK[4]="permutationsYGCCL";
+    lArgRNK[5]="powersOfTwoGCCL";
+    lArgRNK[6]="balancedNumbersGCCL";
+    lArgRNK[7]="pascalTGCCL";
+    lArgRNK[8]="axisSizeGCCL";
+    lArgRNK[9]="binaryLengthGCCL";
+    lArgRNK[10]="numBalancedNumbersGCCL";
+    lArgRNK[11]="shufflingPrimeGCCL";
 
 
 
     if((indPGen==1)||(N!=*axisSizeGC)||(r!=*lengthInBinaryGC)){
         indPGen=1;
+        indFirstRNInitGC=0;
+        if(r!=*lengthInBinaryGC){
+            delete[]balancedNumbersGC;
+            balancedNumbersGC=nullptr;
+            *numBalancedNumbersGC=0;
+            delete[]pascalTriangleGC;
+            pascalTriangleGC=nullptr;
+            *sizePascalTrGC=0;
+        }
+        
+        for(myint i=0;i<numArg;i++){
+            freeDeviceMemory(lArgRNK[i]);
+        }
+        
+        
         *lengthInBinaryGC=r;
         *axisSizeGC=N;
         if(xAxisGC!=nullptr){
@@ -1267,9 +1403,9 @@ mysint GraphicCard::generateRandomNumbers(myint N,myint r,mysint inputIndPGen){
         }
         
         createPascalTriangleGC(*lengthInBinaryGC+3);
+        
         *numBalancedNumbersGC=pascalTriangleGC[ ((*lengthInBinaryGC)*(*lengthInBinaryGC+1))/2+ (*lengthInBinaryGC)/2];
         
-        //std::cout<<"From the graphic card: "<<*numBalancedNumbersGC<< std::endl;
         uniformLimitGC=*numBalancedNumbersGC-1;
         for(myint i=0;i<bigInt;i++){
             delete[] binMatrix[i];
@@ -1331,26 +1467,202 @@ mysint GraphicCard::generateRandomNumbers(myint N,myint r,mysint inputIndPGen){
         
         findAddKernel("genMainRandomMatrixGC");
         
-        std::string *lArgRNK;
-        myint numArg=12;
-        lArgRNK=new std::string[numArg];
-        lArgRNK[0]="rNumGCCL";
-        lArgRNK[1]="xAxGCCL";
-        lArgRNK[2]="yAxGCCL";
-        lArgRNK[3]="permutationsXGCCL";
-        lArgRNK[4]="permutationsYGCCL";
-        lArgRNK[5]="powersOfTwoGCCL";
-        lArgRNK[6]="balancedNumbersGCCL";
-        lArgRNK[7]="pascalTGCCL";
-        lArgRNK[8]="axisSizeGCCL";
-        lArgRNK[9]="binaryLengthGCCL";
-        lArgRNK[10]="numBalancedNumbersGCCL";
-        lArgRNK[11]="shufflingPrimeGCCL";
+
         setKernelArguments("genMainRandomMatrixGC",lArgRNK,numArg);
-        delete[] lArgRNK;
+        
         
     }
+    delete[] lArgRNK;
+    
+    
     executeKernel("genMainRandomMatrixGC", (*axisSizeGC)*(*axisSizeGC));
+    
     return 1;
 }
+
+mysint GraphicCard::generateNormalBeasleySpringerMoro(myint N,myint r,  myint prec1ReqInput, myint *sampleLength,
+                                                      myint *overLoadSeq, myint overLoadLen,//these two are for debugging
+                                     cl_double par1, cl_double par2, mysint inputIndPGen){
+    generateRandomNumbers(N,r,inputIndPGen);
+    mysint inspResFun=0;
+    myint precReq=  prec1ReqInput;
+    
+    myint type=7;
+    
+    
+    *highestPrecisionGC=powerGC(*numBalancedNumbersGC, prec1ReqInput)-1;
+ 
+    *precisionRequestGC=precReq;
+    
+    *sizeForRejectionSamplingGC=precReq;
+ 
+    *sampleLength= (N * N) / (*sizeForRejectionSamplingGC);
+    if((*sampleLength!=*sampleLengthGC)||(lastRandAlgUsedGC!=type)){
+        lastRandAlgUsedGC=type;
+        
+        delete[] randomSampleGC;
+        inspectorExecutedGC=0;
+        sampleGenKernExecutedGC=0;
+        *sampleLengthGC=*sampleLength;
+        randomSampleGC=new cl_double[*sampleLengthGC];
+        
+        writeDeviceMemory("randSampGCCL",randomSampleGC,*sampleLengthGC);
+        writeDeviceMemory("sampleLengthGCCL",sampleLengthGC,1);
+        writeDeviceMemory("sizeRejectionSamplingGCCL",sizeForRejectionSamplingGC,1);
+        writeDeviceMemory("precReqGCCL",precisionRequestGC,1);
+        writeDeviceMemory("par1GCCL",&par1,1);
+        writeDeviceMemory("par2GCCL",&par2,1);
+        writeDeviceMemory("numBalancedNumbersGCCL",numBalancedNumbersGC,1);
+        writeDeviceMemory("biggestNumGCCL",highestPrecisionGC,1);
+        
+        cl_double *a,*b,*c;
+        myint numAB=4, numC=9;
+        a=new cl_double[numAB];
+        b=new cl_double[numAB];
+        c=new cl_double[numC];
+        a[0]=2.50662823884;
+        a[1]=-18.61500062529;
+        a[2]=41.39119773534;
+        a[3]=-25.44106049637;
+        
+        b[0]=-8.47351093090;
+        b[1]=23.08336743743;
+        b[2]=-21.06224101826;
+        b[3]=3.13082909833;
+        
+        c[0]=0.3374754822726147;
+        c[1]=0.9761690190917186;
+        c[2]=0.1607979714918209;
+        c[3]=0.0276438810333863;
+        c[4]=0.0038405729373609;
+        c[5]=0.0003951896511919;
+        c[6]=0.0000321767881768;
+        c[7]=0.0000002888167364;
+        c[8]=0.0000003960315187;
+        writeDeviceMemory("seqAGCCL",a,numAB);
+        writeDeviceMemory("seqBGCCL",b,numAB);
+        writeDeviceMemory("seqCGCCL",c,numC);
+        writeDeviceMemory("numABGCCL",&numAB,1);
+        writeDeviceMemory("numCGCCL",&numC,1);
+        delete[]a;
+        delete[]b;
+        delete[]c;
+    }
+    
+   
+    std::string *lArgRNK;
+    myint numArg=14;
+    lArgRNK=new std::string[numArg];
+    lArgRNK[0]="randSampGCCL";
+    lArgRNK[1]="rNumGCCL";
+    lArgRNK[2]="sampleLengthGCCL";
+    lArgRNK[3]="sizeRejectionSamplingGCCL";
+    lArgRNK[4]="precReqGCCL";
+    lArgRNK[5]="par1GCCL";
+    lArgRNK[6]="par2GCCL";
+    lArgRNK[7]="numBalancedNumbersGCCL";
+    lArgRNK[8]="biggestNumGCCL";
+    lArgRNK[9]="seqAGCCL";
+    lArgRNK[10]="seqBGCCL";
+    lArgRNK[11]="seqCGCCL";
+    lArgRNK[12]="numABGCCL";
+    lArgRNK[13]="numCGCCL";
+    
+    writeDeviceMemory("rNumGCCL",overLoadSeq,overLoadLen);
+    
+    if(sampleGenKernExecutedGC==0){
+        sampleGenKernExecutedGC=1;
+        findAddKernel(normalBSMNameGC);
+        setKernelArguments(normalBSMNameGC,lArgRNK,numArg);
+        
+    }
+    
+    executeKernel(normalBSMNameGC,*sampleLengthGC);
+ 
+    
+    delete[] lArgRNK;
+ 
+    
+    return 1;
+    
+}
+
+
+
+
+
+mysint GraphicCard::generateExponential(myint N,myint r,  myint prec1ReqInput, myint *sampleLength,
+                                                    myint *overLoadSeq, myint overLoadLen,//these two are for debugging
+                                                      cl_double lambda, mysint inputIndPGen){
+    generateRandomNumbers(N,r,inputIndPGen);
+    mysint inspResFun=0;
+    myint precReq=  prec1ReqInput;
+    
+    myint type=8;
+    
+    
+    *highestPrecisionGC=powerGC(*numBalancedNumbersGC, prec1ReqInput)-1;
+    
+    *precisionRequestGC=precReq;
+    
+    *sizeForRejectionSamplingGC=precReq;
+    
+    *sampleLength= (N * N) / (*sizeForRejectionSamplingGC);
+    if((*sampleLength!=*sampleLengthGC)||(lastRandAlgUsedGC!=type)){
+        lastRandAlgUsedGC=type;
+        
+        delete[] randomSampleGC;
+        sampleGenKernExecutedGC=0;
+        *sampleLengthGC=*sampleLength;
+        randomSampleGC=new cl_double[*sampleLengthGC];
+        
+        writeDeviceMemory("randSampGCCL",randomSampleGC,*sampleLengthGC);
+        writeDeviceMemory("sampleLengthGCCL",sampleLengthGC,1);
+        writeDeviceMemory("sizeRejectionSamplingGCCL",sizeForRejectionSamplingGC,1);
+        writeDeviceMemory("precReqGCCL",precisionRequestGC,1);
+        writeDeviceMemory("par2GCCL",&lambda,1);
+ 
+        writeDeviceMemory("numBalancedNumbersGCCL",numBalancedNumbersGC,1);
+        writeDeviceMemory("biggestNumGCCL",highestPrecisionGC,1);
+        
+    }
+    
+    
+    std::string *lArgRNK;
+    myint numArg=8;
+    lArgRNK=new std::string[numArg];
+    lArgRNK[0]="randSampGCCL";
+    lArgRNK[1]="rNumGCCL";
+    lArgRNK[2]="sampleLengthGCCL";
+    lArgRNK[3]="sizeRejectionSamplingGCCL";
+    lArgRNK[4]="precReqGCCL";
+    lArgRNK[5]="par2GCCL";
+    lArgRNK[6]="numBalancedNumbersGCCL";
+    lArgRNK[7]="biggestNumGCCL";
+    
+    
+    writeDeviceMemory("rNumGCCL",overLoadSeq,overLoadLen);
+    
+    if(sampleGenKernExecutedGC==0){
+        sampleGenKernExecutedGC=1;
+        findAddKernel(exponentialDistNameGC);
+        setKernelArguments(exponentialDistNameGC,lArgRNK,numArg);
+        
+    }
+    
+    executeKernel(exponentialDistNameGC,*sampleLengthGC);
+    
+    
+    delete[] lArgRNK;
+    
+    
+    return 1;
+    
+}
+
+
+
+
+
+
 
